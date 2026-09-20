@@ -29,32 +29,22 @@ flowchart LR
 ## Fluxo de uma transferência
 
 ```mermaid
-sequenceDiagram
-    participant C as Cliente
-    participant T as transfer-service
-    participant W as wallet-service
+flowchart TD
+    A([POST /api/transfers]) --> B[Salva Transfer como PENDING]
+    B --> C[Debita a origem no wallet-service]
+    C -->|falhou| F[Status FAILED<br/>nada foi movido]
+    C -->|ok| D[Credita o destino no wallet-service]
+    D -->|ok| OK[Status COMPLETED<br/>200 OK]
+    D -->|falhou| E[Devolve o valor à origem]
+    E -->|ok| CO[Status COMPENSATED]
+    E -->|falhou| CF[Status COMPENSATION_FAILED<br/>intervenção manual]
 
-    C->>T: POST /api/transfers (idempotencyKey)
-    T->>T: salva Transfer PENDING
-    T->>W: debit(origem)
-    alt débito falhou
-        T->>T: status FAILED
-        T-->>C: erro (nada foi movido)
-    else débito ok
-        T->>W: credit(destino)
-        alt crédito ok
-            T->>T: status COMPLETED
-            T-->>C: 200 OK
-        else crédito falhou
-            T->>W: credit(origem) — devolução
-            alt devolução ok
-                T->>T: status COMPENSATED
-            else devolução falhou
-                T->>T: status COMPENSATION_FAILED
-            end
-            T-->>C: erro
-        end
-    end
+    classDef sucesso fill:#1a7f37,stroke:#1a7f37,color:#fff
+    classDef erro fill:#cf222e,stroke:#cf222e,color:#fff
+    classDef aviso fill:#9a6700,stroke:#9a6700,color:#fff
+    class OK sucesso
+    class F,CF erro
+    class CO aviso
 ```
 
 ## Status da transferência
