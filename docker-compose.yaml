@@ -1,0 +1,62 @@
+services:
+  wallet-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: wallet
+      POSTGRES_USER: wallet
+      POSTGRES_PASSWORD: wallet
+    volumes:
+      - walletdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wallet -d wallet"]
+      interval: 5s
+      retries: 10
+
+  wallet-service:
+    build:
+      context: ../../wallet-service/wallet-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://wallet-db:5432/wallet
+      SPRING_DATASOURCE_USERNAME: wallet
+      SPRING_DATASOURCE_PASSWORD: wallet
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      wallet-db:
+        condition: service_healthy
+
+  transfer-db:
+    image: postgres:16
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: transfer
+      POSTGRES_USER: transfer
+      POSTGRES_PASSWORD: transfer
+    volumes:
+      - transferdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transfer -d transfer"]
+      interval: 5s
+      retries: 10
+
+  transfer-service:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://transfer-db:5432/transfer
+      SPRING_DATASOURCE_USERNAME: transfer
+      SPRING_DATASOURCE_PASSWORD: transfer
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      WALLET_SERVICE_BASE_URL: http://wallet-service:8080
+    depends_on:
+      transfer-db:
+        condition: service_healthy
+      wallet-service:
+        condition: service_started
+
+volumes:
+  walletdata:
+  transferdata:
